@@ -103,8 +103,9 @@ function formatDate(dateStr: string) {
           />
           <button
             class="search-btn"
+            :class="{ active: cityInput.trim() && !loading }"
             @click="getWeather()"
-            :disabled="loading"
+            :disabled="!cityInput.trim() || loading"
           >
             <span v-if="loading">搜索中</span>
             <svg v-else xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -170,7 +171,6 @@ function formatDate(dateStr: string) {
           <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
         </svg>
         <p>输入城市名称查询天气</p>
-        <p class="hint">数据来源：心知天气</p>
       </div>
     </main>
   </div>
@@ -273,11 +273,11 @@ function formatDate(dateStr: string) {
   justify-content: center;
   width: 50px;
   height: 50px;
-  border: none;
-  background: rgba(55, 65, 81, 0.9);
+  border: 1px solid rgba(128,128,128,0.5);
+  background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  color: white;
+  color: gray;
   border-radius: 14px;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -285,13 +285,23 @@ function formatDate(dateStr: string) {
   font-weight: 500;
 }
 
-.search-btn:hover:not(:disabled) {
+.search-btn.active {
+  background: #6b7280;
+  border-color: #6b7280;
+  color: white;
+}
+
+.search-btn.active:hover:not(:disabled) {
+  background: #4b5563;
+  border-color: #4b5563;
+}
+
+.search-btn:hover:not(:disabled):not(.active) {
   transform: translateY(-1px);
-  background: rgba(31, 41, 55, 0.95);
+  background: rgba(255, 255, 255, 0.9);
 }
 
 .search-btn:disabled {
-  opacity: 0.5;
   cursor: not-allowed;
   background: rgba(255, 255, 255, 0.5);
   color: #9ca3af;
@@ -504,11 +514,6 @@ function formatDate(dateStr: string) {
 .empty-state p {
   font-size: 16px;
   margin-bottom: 8px;
-}
-
-.empty-state .hint {
-  font-size: 12px;
-  margin-bottom: 0;
 }
 
 @media (max-width: 640px) {

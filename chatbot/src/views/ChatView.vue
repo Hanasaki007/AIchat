@@ -13,6 +13,8 @@ import java from 'highlight.js/lib/languages/java'
 import csharp from 'highlight.js/lib/languages/csharp'
 import go from 'highlight.js/lib/languages/go'
 import rust from 'highlight.js/lib/languages/rust'
+import avatarImage from '../assets/avatar.jpg'
+import userAvatarImage from '../assets/avatar-user.png'
 
 hljs.registerLanguage('javascript', javascript)
 hljs.registerLanguage('typescript', typescript)
@@ -30,6 +32,48 @@ const router = useRouter()
 const inputContent = ref('')
 const messagesEnd = ref<HTMLElement | null>(null)
 let abortController: AbortController | null = null
+let longPressTimer: ReturnType<typeof setTimeout> | null = null
+const longPressDuration = 500
+const copiedIndex = ref<number | null>(null)
+
+function handleLongPress(index: number) {
+  longPressTimer = setTimeout(() => {
+    copiedIndex.value = index
+  }, longPressDuration)
+}
+
+function handleLongPressEnd() {
+  if (longPressTimer) {
+    clearTimeout(longPressTimer)
+    longPressTimer = null
+  }
+}
+
+function hideCopyButton() {
+  copiedIndex.value = null
+}
+
+async function copyMessage(index: number) {
+  const message = chatStore.messages[index]
+  if (!message) return
+
+  let textToCopy = message.content
+
+  if (message.role === 'assistant' && message.reasoningContent) {
+    const tempDiv = document.createElement('div')
+    tempDiv.innerHTML = renderMarkdown(message.content)
+    textToCopy = tempDiv.textContent || tempDiv.innerText || message.content
+  }
+
+  try {
+    await navigator.clipboard.writeText(textToCopy)
+    setTimeout(() => {
+      copiedIndex.value = null
+    }, 1500)
+  } catch (err) {
+    console.error('复制失败:', err)
+  }
+}
 
 const renderer = {
   code(token: Tokens.Code): string {
@@ -199,7 +243,7 @@ function handleKeyPress(e: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="chat-container">
+  <div class="chat-container" @click="hideCopyButton">
     <header class="header">
       <button
         class="icon-btn trash-btn"
@@ -231,22 +275,22 @@ function handleKeyPress(e: KeyboardEvent) {
         <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
         </svg>
-        <p>开始一段新的对话吧！</p>
+        <p>今天有什么可以帮到你？</p>
       </div>
 
       <div v-for="(message, index) in chatStore.messages" :key="index" class="message-wrapper">
-        <div :class="['message', message.role]">
+        <div
+          :class="['message', message.role]"
+          @mousedown="handleLongPress(index)"
+          @mouseup="handleLongPressEnd"
+          @mouseleave="handleLongPressEnd"
+          @touchstart="handleLongPress(index)"
+          @touchend="handleLongPressEnd"
+          @click.stop
+        >
           <div class="message-avatar">
-            <svg v-if="message.role === 'user'" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-            <svg v-else xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="11" width="18" height="10" rx="2"></rect>
-              <circle cx="8.5" cy="16" r="1"></circle>
-              <polyline points="2 11 2 7 6 7 6 11 2 11"></polyline>
-              <path d="M6 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2"></path>
-            </svg>
+            <img v-if="message.role === 'user'" :src="userAvatarImage" alt="User" class="avatar-img">
+            <img v-else :src="avatarImage" alt="AI" class="avatar-img">
           </div>
           <div class="message-content">
             <div v-if="message.reasoningContent" class="reasoning-wrapper">
@@ -255,7 +299,7 @@ function handleKeyPress(e: KeyboardEvent) {
                 @click="chatStore.toggleReasoningExpanded(index)"
               >
                 <span class="toggle-icon">{{ message.isReasoningExpanded ? '▼' : '▶' }}</span>
-                <span>💭 思考过程</span>
+                <span>思考过程</span>
               </button>
               <div v-if="message.isReasoningExpanded" class="reasoning-content">
                 <div class="reasoning-text markdown-body" v-html="renderMarkdown(message.reasoningContent)"></div>
@@ -269,6 +313,15 @@ function handleKeyPress(e: KeyboardEvent) {
             <div v-else class="message-text">{{ message.content }}</div>
             <span v-if="message.isStreaming" class="cursor-blink"><span></span><span></span><span></span></span>
           </div>
+        </div>
+        <div v-if="copiedIndex === index" class="copy-actions">
+          <button class="copy-btn" @click.stop="copyMessage(index)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            <span>复制</span>
+          </button>
         </div>
       </div>
 
@@ -296,6 +349,7 @@ function handleKeyPress(e: KeyboardEvent) {
         />
         <button
           class="send-btn"
+          :class="{ active: inputContent.trim() }"
           @click="sendMessage()"
           :disabled="!inputContent.trim() && !chatStore.isLoading"
         >
@@ -435,11 +489,68 @@ function handleKeyPress(e: KeyboardEvent) {
 
 .message-wrapper {
   display: flex;
+  flex-direction: column;
   margin-bottom: 16px;
+  position: relative;
 }
 
 .message-wrapper:last-child {
   margin-bottom: 0;
+}
+
+.copy-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.copy-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid #d1d5db;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #374151;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.copy-btn:hover {
+  background: #ffffff;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.copy-btn:active {
+  transform: scale(0.98);
+}
+
+.message.user + .copy-actions {
+  justify-content: flex-end;
+  padding-right: 48px;
+}
+
+.message.assistant + .copy-actions {
+  justify-content: flex-start;
+  padding-left: 48px;
 }
 
 .message {
@@ -453,21 +564,21 @@ function handleKeyPress(e: KeyboardEvent) {
 
 .message.user {
   margin-left: auto;
-  background: rgba(55, 65, 81, 0.9);
+  background: #e5e7eb;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  color: white;
+  color: #374151;
   border-bottom-right-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid #d1d5db;
 }
 
 .message.assistant {
-  background: rgba(255, 255, 255, 0.8);
+  background: #e5e7eb;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border-bottom-left-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid #d1d5db;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .message-avatar {
@@ -481,19 +592,20 @@ function handleKeyPress(e: KeyboardEvent) {
   background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 1px solid #9ca3af;
   color: #374151;
 }
 
 .message.user .message-avatar {
-  border: solid white 1px;
+  order: 2;
+  background: rgba(255, 255, 255, 0.8);
+  color: #374151;
 }
 
-.message.user .message-avatar {
-  order: 2;
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  border-color: rgba(255, 255, 255, 0.3);
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
 }
 
 .message-content {
@@ -510,10 +622,10 @@ function handleKeyPress(e: KeyboardEvent) {
   align-items: center;
   gap: 6px;
   padding: 10px 14px;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.5);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 1px solid #9ca3af;
+  border: 1px solid #d1d5db;
   border-radius: 12px;
   cursor: pointer;
   font-size: 13px;
@@ -536,10 +648,10 @@ function handleKeyPress(e: KeyboardEvent) {
 .reasoning-content {
   margin-top: 8px;
   padding: 12px 16px;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.5);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 1px solid #9ca3af;
+  border: 1px solid #d1d5db;
   border-radius: 12px;
 }
 
@@ -559,7 +671,7 @@ function handleKeyPress(e: KeyboardEvent) {
 
 .message.user .message-text {
   white-space: pre-wrap;
-  color: white;
+  color: #374151;
 }
 
 .cursor-blink {
@@ -616,7 +728,7 @@ function handleKeyPress(e: KeyboardEvent) {
 .message.user .markdown-body :deep(h4),
 .message.user .markdown-body :deep(h5),
 .message.user .markdown-body :deep(h6) {
-  color: white;
+  color: #374151;
 }
 
 .markdown-body :deep(h1:last-child),
@@ -666,8 +778,8 @@ function handleKeyPress(e: KeyboardEvent) {
 }
 
 .message.user .markdown-body :deep(code) {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
+  background: rgba(0, 0, 0, 0.08);
+  color: #e11d48;
 }
 
 .markdown-body :deep(pre) {
@@ -698,8 +810,8 @@ function handleKeyPress(e: KeyboardEvent) {
 }
 
 .message.user .markdown-body :deep(blockquote) {
-  border-left-color: rgba(255, 255, 255, 0.4);
-  color: rgba(255, 255, 255, 0.9);
+  border-left-color: #d1d5db;
+  color: #6b7280;
 }
 
 .markdown-body :deep(blockquote:last-child) {
@@ -734,7 +846,7 @@ function handleKeyPress(e: KeyboardEvent) {
 }
 
 .message.user .markdown-body :deep(a) {
-  color: #a5b4fc;
+  color: #4f46e5;
 }
 
 .markdown-body :deep(a:hover) {
@@ -789,7 +901,8 @@ function handleKeyPress(e: KeyboardEvent) {
   border: 1px solid rgba(128,128,128,0.5);
   border-radius: 14px;
   cursor: pointer;
-  color: #4b5563;
+  /* color: #9ca3af; */
+  color: gray;
   font-size: 14px;
   font-weight: 500;
   transition: all 0.3s ease;
@@ -810,9 +923,9 @@ function handleKeyPress(e: KeyboardEvent) {
 }
 
 .thinking-toggle.active {
-  background: rgba(55, 65, 81, 0.9);
+  background: #6b7280;
+  border-color: #6b7280;
   color: white;
-  border-color: rgba(55, 65, 81, 0.5);
 }
 
 .input-field {
@@ -842,6 +955,7 @@ function handleKeyPress(e: KeyboardEvent) {
 
 .input-field:disabled {
   background: rgba(255, 255, 255, 0.5);
+  color: #9ca3af;
   cursor: not-allowed;
 }
 
@@ -852,21 +966,33 @@ function handleKeyPress(e: KeyboardEvent) {
   width: 50px;
   height: 50px;
   border: 1px solid rgba(128,128,128,0.5);
-  background: rgba(55, 65, 81, 0.9);
-  color: white;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: gray;
   border-radius: 14px;
   cursor: pointer;
   transition: all 0.3s ease;
   flex-shrink: 0;
 }
 
-.send-btn:hover:not(:disabled) {
+.send-btn.active {
+  background: #6b7280;
+  border-color: #6b7280;
+  color: white;
+}
+
+.send-btn.active:hover:not(:disabled) {
+  background: #4b5563;
+  border-color: #4b5563;
+}
+
+.send-btn:hover:not(:disabled):not(.active) {
   transform: translateY(-1px);
-  background: rgba(31, 41, 55, 0.95);
+  background: rgba(255, 255, 255, 0.9);
 }
 
 .send-btn:disabled {
-  /* opacity: 0.5; */
   cursor: not-allowed;
   background: rgba(255, 255, 255, 0.5);
   color: #9ca3af;

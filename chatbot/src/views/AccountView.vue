@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import userAvatarImage from '../assets/avatar-user.png'
 
 const router = useRouter()
 
@@ -25,10 +26,7 @@ function goToWeather() {
       <div class="profile-section">
         <div class="avatar-wrapper">
           <div class="avatar">
-            <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
+            <img :src="userAvatarImage" alt="User" class="avatar-img">
           </div>
         </div>
         <div class="username">用户</div>
@@ -176,6 +174,13 @@ function goToWeather() {
 .avatar svg {
   width: 60px;
   height: 60px;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
 }
 
 .username {
