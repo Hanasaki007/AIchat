@@ -3,6 +3,7 @@ import { ref, onMounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useChatStore } from '../stores/chat'
 import { marked, type Tokens } from 'marked'
+import markedKatexExtension from 'marked-katex-extension'
 import hljs from 'highlight.js/lib/core'
 import javascript from 'highlight.js/lib/languages/javascript'
 import typescript from 'highlight.js/lib/languages/typescript'
@@ -105,6 +106,11 @@ const renderer = {
 }
 
 marked.use({ renderer })
+marked.use(markedKatexExtension({
+  throwOnError: false,
+  trust: true,
+  nonStandard: true
+}))
 marked.setOptions({
   breaks: true,
   gfm: true
@@ -381,6 +387,7 @@ function handleKeyPress(e: KeyboardEvent) {
 
 <style>
 @import 'highlight.js/styles/github-dark.css';
+@import 'katex/dist/katex.min.css';
 </style>
 
 <style scoped>
