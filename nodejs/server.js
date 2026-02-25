@@ -49,7 +49,7 @@ app.post('/api/chat', async (req, res) => {
       model: MODEL,
       messages: [systemMessage, ...messages],
       stream: true,
-      max_tokens: 4096
+      max_tokens: 8192
     };
 
     if (thinking) {
